@@ -106,8 +106,7 @@ var (
 	// L1 Info Gas Overhead is the amount of gas the the L1 info deposit consumes.
 	// It is removed from the tx pool max gas to better indicate that L2 transactions
 	// are not able to consume all of the gas in a L2 block as the L1 info deposit is always present.
-	l1InfoGasOverhead  = uint64(70_000)
-	reannounceInterval = time.Minute // Time interval to check for reannounce transactions
+	l1InfoGasOverhead = uint64(70_000)
 )
 
 var (
@@ -183,9 +182,10 @@ type Config struct {
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
-	Lifetime          time.Duration // Maximum amount of time non-executable transaction are queued
-	ReannounceTime    time.Duration // Duration for announcing local pending transactions again
-	ReannounceRemotes bool          // Wether reannounce remote transactions or not
+	Lifetime           time.Duration // Maximum amount of time non-executable transaction are queued
+	ReannounceTime     time.Duration // Duration for announcing local pending transactions again
+	ReannounceRemotes  bool          // Wether reannounce remote transactions or not
+	ReannounceInterval time.Duration // Interval for reannouncing transactions
 }
 
 // DefaultConfig contains the default configurations for the transaction
@@ -202,9 +202,10 @@ var DefaultConfig = Config{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
-	Lifetime:          3 * time.Hour,
-	ReannounceTime:    10 * 365 * 24 * time.Hour,
-	ReannounceRemotes: false,
+	Lifetime:           3 * time.Hour,
+	ReannounceTime:     10 * 365 * 24 * time.Hour,
+	ReannounceRemotes:  false,
+	ReannounceInterval: 1 * time.Minute,
 }
 
 // sanitize checks the provided user configurations and changes anything that's
@@ -367,13 +368,12 @@ func NewTxPool(config Config, chainconfig *params.ChainConfig, chain blockChain)
 // eviction events.
 func (pool *TxPool) loop() {
 	defer pool.wg.Done()
-
 	var (
 		prevPending, prevQueued, prevStales int
 		// Start the stats reporting and transaction eviction tickers
 		report     = time.NewTicker(statsReportInterval)
 		evict      = time.NewTicker(evictionInterval)
-		reannounce = time.NewTicker(reannounceInterval)
+		reannounce = time.NewTicker(pool.config.ReannounceInterval)
 		journal    = time.NewTicker(pool.config.Rejournal)
 		// Track the previous head headers for transaction reorgs
 		head = pool.chain.CurrentBlock()
