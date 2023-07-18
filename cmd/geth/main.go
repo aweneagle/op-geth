@@ -90,6 +90,7 @@ var (
 		utils.TxPoolLifetimeFlag,
 		utils.TxPoolReannounceTimeFlag,
 		utils.TxPoolReannounceRemotesFlag,
+		utils.TxPoolReannounceIntervalFlag,
 		utils.SyncModeFlag,
 		utils.SyncTargetFlag,
 		utils.ExitWhenSyncedFlag,
@@ -159,6 +160,7 @@ var (
 		utils.RollupHistoricalRPCFlag,
 		utils.RollupHistoricalRPCTimeoutFlag,
 		utils.RollupDisableTxPoolGossipFlag,
+		utils.RollupCollectUnderpricedTxFlag,
 		utils.RollupComputePendingBlock,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)

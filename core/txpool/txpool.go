@@ -248,6 +248,10 @@ func (config *Config) sanitize() Config {
 		log.Warn("Sanitizing invalid txpool reannounce time", "provided", conf.ReannounceTime, "updated", time.Minute)
 		conf.ReannounceTime = time.Minute
 	}
+	if conf.ReannounceInterval <= 0 {
+		log.Warn("Sanitizing invalid txpool reannounce interval", "provided", conf.ReannounceInterval, "updated", time.Minute)
+		conf.ReannounceInterval = 1 * time.Minute
+	}
 	return conf
 }
 
