@@ -54,7 +54,7 @@ const (
 	txMaxSize = 4 * txSlotSize // 128KB
 
 	// txReannoMaxNum is the maximum number of transactions a reannounce action can include.
-	txReannoMaxNum = 2048
+	txReannoMaxNum = 1024
 )
 
 var (

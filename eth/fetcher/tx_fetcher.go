@@ -37,7 +37,7 @@ import (
 const (
 	// maxTxAnnounces is the maximum number of unique transaction a peer
 	// can announce in a short time.
-	maxTxAnnounces = 8192
+	maxTxAnnounces = 4096
 
 	// maxTxRetrievals is the maximum transaction number can be fetched in one
 	// request. The rationale to pick 256 is:
@@ -258,10 +258,6 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	case f.notify <- announce:
 		return nil
 	case <-f.quit:
-		// close DOS protection, by returning error nil to keep the peer connection
-		if f.AllowUnderpricedTx {
-			return nil
-		}
 		return errTerminated
 	}
 }

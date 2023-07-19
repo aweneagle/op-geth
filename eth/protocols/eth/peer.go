@@ -43,7 +43,7 @@ const (
 
 	// maxQueuedTxAnns is the maximum number of transaction announcements to queue up
 	// before dropping older announcements.
-	maxQueuedTxAnns = 8192
+	maxQueuedTxAnns = 4096
 
 	// maxQueuedBlocks is the maximum number of block propagations to queue up before
 	// dropping broadcasts. There's not much point in queueing stale blocks, so a few
