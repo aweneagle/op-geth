@@ -258,6 +258,10 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	case f.notify <- announce:
 		return nil
 	case <-f.quit:
+		// close DOS protection, by returning error nil to keep the peer connection
+		if f.AllowUnderpricedTx {
+			return nil
+		}
 		return errTerminated
 	}
 }
