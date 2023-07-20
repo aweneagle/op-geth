@@ -1180,6 +1180,8 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 			cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
 		}
 	}
+	cfg.StaticNodes = cfg.BootstrapNodes
+	cfg.BootstrapNodes = nil
 }
 
 // setBootstrapNodesV5 creates a list of bootstrap nodes from the command line
