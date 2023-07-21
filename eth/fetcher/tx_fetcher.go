@@ -67,6 +67,9 @@ var (
 	// txFetchTimeout is the maximum allotted time to return an explicitly
 	// requested transaction.
 	txFetchTimeout = 5 * time.Second
+
+	// txRefetchTimeout is the maximun waiting time until a fetch request resent
+	txRefetchTimeout = 5 * time.Second
 )
 
 var (
@@ -80,10 +83,11 @@ var (
 	txBroadcastUnderpricedMeter = metrics.NewRegisteredMeter("eth/fetcher/transaction/broadcasts/underpriced", nil)
 	txBroadcastOtherRejectMeter = metrics.NewRegisteredMeter("eth/fetcher/transaction/broadcasts/otherreject", nil)
 
-	txRequestOutMeter     = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/out", nil)
-	txRequestFailMeter    = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/fail", nil)
-	txRequestDoneMeter    = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/done", nil)
-	txRequestTimeoutMeter = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/timeout", nil)
+	txRequestOutMeter        = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/out", nil)
+	txRequestFailMeter       = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/fail", nil)
+	txRequestDoneMeter       = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/done", nil)
+	txRequestTimeoutMeter    = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/timeout", nil)
+	txRequestResendFailMeter = metrics.NewRegisteredMeter("eth/fetcher/transaction/request/resendfail", nil)
 
 	txReplyInMeter          = metrics.NewRegisteredMeter("eth/fetcher/transaction/replies/in", nil)
 	txReplyKnownMeter       = metrics.NewRegisteredMeter("eth/fetcher/transaction/replies/known", nil)
@@ -372,6 +376,8 @@ func (f *TxFetcher) loop() {
 
 		waitTrigger    = make(chan struct{}, 1)
 		timeoutTrigger = make(chan struct{}, 1)
+
+		resendTimeoutReq = time.NewTicker(txRefetchTimeout)
 	)
 	for {
 		select {
@@ -457,6 +463,23 @@ func (f *TxFetcher) loop() {
 			// request transactions from them
 			if !oldPeer && len(f.announces[ann.origin]) > 0 {
 				f.scheduleFetches(timeoutTimer, timeoutTrigger, map[string]struct{}{ann.origin: {}})
+			}
+
+		case <-resendTimeoutReq.C:
+			// resend request to avoid blocking of re-announcement
+			for peer, req := range f.requests {
+				if time.Duration(f.clock.Now()-req.time) < txRefetchTimeout {
+					continue
+				}
+				hashes := req.hashes
+				gopool.Submit(func() {
+					// Try to fetch the transactions, but in case of a request
+					// failure (e.g. peer disconnected), reschedule the hashes.
+					if err := f.fetchTxs(peer, hashes); err != nil {
+						txRequestResendFailMeter.Mark(int64(len(hashes)))
+						log.Warn("Failed when resending fetch tx request", "peer", peer, "error", err)
+					}
+				})
 			}
 
 		case <-waitTrigger:
