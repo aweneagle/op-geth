@@ -396,6 +396,7 @@ func (pool *TxPool) loop() {
 			log.Error("failed to dial reannounce endpoint", "ReannounceEndpoint", pool.config.ReannounceEndpoint, "err", err.Error())
 		} else {
 			reannCli = cli
+			log.Info("dial reannounce endpoint", "ReannounceEndpoint", pool.config.ReannounceEndpoint)
 		}
 	}
 	defer report.Stop()
