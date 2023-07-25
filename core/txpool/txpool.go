@@ -17,6 +17,7 @@
 package txpool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -31,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -123,6 +125,10 @@ var (
 	queuedNofundsMeter   = metrics.NewRegisteredMeter("txpool/queued/nofunds", nil)   // Dropped due to out-of-funds
 	queuedEvictionMeter  = metrics.NewRegisteredMeter("txpool/queued/eviction", nil)  // Dropped due to lifetime
 
+	// Reann tx metrics
+	reannMeter     = metrics.NewRegisteredMeter("txpool/reann", nil)
+	reannFailMeter = metrics.NewRegisteredMeter("txpool/reann/fail", nil)
+
 	// General tx metrics
 	knownTxMeter       = metrics.NewRegisteredMeter("txpool/known", nil)
 	validTxMeter       = metrics.NewRegisteredMeter("txpool/valid", nil)
@@ -186,6 +192,7 @@ type Config struct {
 	ReannounceTime     time.Duration // Duration for announcing local pending transactions again
 	ReannounceRemotes  bool          // Wether reannounce remote transactions or not
 	ReannounceInterval time.Duration // Interval for reannouncing transactions
+	ReannounceEndpoint string        // RPC Endpoint to reannounce tx to
 }
 
 // DefaultConfig contains the default configurations for the transaction
@@ -380,8 +387,17 @@ func (pool *TxPool) loop() {
 		reannounce = time.NewTicker(pool.config.ReannounceInterval)
 		journal    = time.NewTicker(pool.config.Rejournal)
 		// Track the previous head headers for transaction reorgs
-		head = pool.chain.CurrentBlock()
+		head     = pool.chain.CurrentBlock()
+		reannCli *ethclient.Client
 	)
+	if pool.config.ReannounceEndpoint != "" {
+		cli, err := ethclient.Dial(pool.config.ReannounceEndpoint)
+		if err != nil {
+			log.Error("failed to dial reannounce endpoint", "ReannounceEndpoint", pool.config.ReannounceEndpoint, "err", err.Error())
+		} else {
+			reannCli = cli
+		}
+	}
 	defer report.Stop()
 	defer evict.Stop()
 	defer reannounce.Stop()
@@ -458,7 +474,17 @@ func (pool *TxPool) loop() {
 			}()
 			pool.mu.RUnlock()
 			if len(reannoTxs) > 0 {
-				pool.reannoTxFeed.Send(core.ReannoTxsEvent{reannoTxs})
+				if reannCli != nil {
+					reannMeter.Mark(int64(len(reannoTxs)))
+					for _, tx := range reannoTxs {
+						if err := reannCli.SendTransaction(context.TODO(), tx); err != nil {
+							log.Error("failed to reannounce tx by endpoint", "txHash", tx.Hash().String(), "err", err)
+							reannFailMeter.Mark(1)
+						}
+					}
+				} else {
+					pool.reannoTxFeed.Send(core.ReannoTxsEvent{reannoTxs})
+				}
 			}
 
 		// Handle local transaction journal rotation

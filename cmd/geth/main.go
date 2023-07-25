@@ -91,6 +91,7 @@ var (
 		utils.TxPoolReannounceTimeFlag,
 		utils.TxPoolReannounceRemotesFlag,
 		utils.TxPoolReannounceIntervalFlag,
+		utils.TxPoolReannounceEndpointFlag,
 		utils.SyncModeFlag,
 		utils.SyncTargetFlag,
 		utils.ExitWhenSyncedFlag,

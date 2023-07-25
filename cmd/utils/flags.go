@@ -473,8 +473,14 @@ var (
 	}
 	TxPoolReannounceIntervalFlag = &cli.DurationFlag{
 		Name:     "txpool.reannounceinterval",
-		Usage:    "Interval of announcing transactions",
+		Usage:    "Interval to reannounce tx",
 		Value:    ethconfig.Defaults.TxPool.ReannounceInterval,
+		Category: flags.TxPoolCategory,
+	}
+	TxPoolReannounceEndpointFlag = &cli.StringFlag{
+		Name:     "txpool.reannounceendpoint",
+		Usage:    "Endpoint to reannounce tx",
+		Value:    "",
 		Category: flags.TxPoolCategory,
 	}
 
@@ -1684,6 +1690,9 @@ func setTxPool(ctx *cli.Context, cfg *txpool.Config) {
 	}
 	if ctx.IsSet(TxPoolReannounceRemotesFlag.Name) {
 		cfg.ReannounceRemotes = ctx.Bool(TxPoolReannounceRemotesFlag.Name)
+	}
+	if ctx.IsSet(TxPoolReannounceEndpointFlag.Name) {
+		cfg.ReannounceEndpoint = ctx.String(TxPoolReannounceEndpointFlag.Name)
 	}
 	if ctx.IsSet(TxPoolReannounceIntervalFlag.Name) {
 		cfg.ReannounceInterval = ctx.Duration(TxPoolReannounceIntervalFlag.Name)
