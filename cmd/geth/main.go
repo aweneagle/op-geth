@@ -89,6 +89,8 @@ var (
 		utils.TxPoolGlobalQueueFlag,
 		utils.TxPoolLifetimeFlag,
 		utils.TxPoolReannounceTimeFlag,
+		utils.TxPoolReannounceEndpoint,
+		utils.TxPoolReannounceInterval,
 		utils.SyncModeFlag,
 		utils.SyncTargetFlag,
 		utils.ExitWhenSyncedFlag,

@@ -208,8 +208,9 @@ var DefaultConfig = Config{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
-	Lifetime:       3 * time.Hour,
-	ReannounceTime: 10 * 365 * 24 * time.Hour,
+	Lifetime:           3 * time.Hour,
+	ReannounceTime:     10 * 365 * 24 * time.Hour,
+	ReannounceInterval: time.Minute,
 }
 
 // sanitize checks the provided user configurations and changes anything that's

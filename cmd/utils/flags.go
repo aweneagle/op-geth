@@ -465,6 +465,18 @@ var (
 		Value:    ethconfig.Defaults.TxPool.ReannounceTime,
 		Category: flags.TxPoolCategory,
 	}
+	TxPoolReannounceEndpoint = &cli.StringFlag{
+		Name:     "txpool.reannounceendpoint",
+		Usage:    "Endpoint to reannounce tx",
+		Value:    "",
+		Category: flags.TxPoolCategory,
+	}
+	TxPoolReannounceInterval = &cli.DurationFlag{
+		Name:     "txpool.reannounceinterval",
+		Usage:    "Interval to reannounce tx",
+		Value:    ethconfig.Defaults.TxPool.ReannounceInterval,
+		Category: flags.TxPoolCategory,
+	}
 
 	// Performance tuning settings
 	CacheFlag = &cli.IntFlag{
@@ -1662,6 +1674,12 @@ func setTxPool(ctx *cli.Context, cfg *txpool.Config) {
 	}
 	if ctx.IsSet(TxPoolReannounceTimeFlag.Name) {
 		cfg.ReannounceTime = ctx.Duration(TxPoolReannounceTimeFlag.Name)
+	}
+	if ctx.IsSet(TxPoolReannounceEndpoint.Name) {
+		cfg.ReannounceEndpoint = ctx.String(TxPoolReannounceEndpoint.Name)
+	}
+	if ctx.IsSet(TxPoolReannounceInterval.Name) {
+		cfg.ReannounceInterval = ctx.Duration(TxPoolReannounceInterval.Name)
 	}
 }
 
