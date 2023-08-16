@@ -311,17 +311,39 @@ func (p *Peer) pingLoop() {
 	}
 }
 
+// p2p/readloop/start
+// p2p/readloop/total
+// p2p/readloop/ping
+// p2p/readloop/discmsg
+// p2p/readloop/discard
+// p2p/readloop/code
+var (
+	readloopStart   = metrics.GetOrRegisterMeter("p2p/readloop/start", nil)
+	readloopError   = metrics.GetOrRegisterMeter("p2p/readloop/error", nil)
+	readloopTotal   = metrics.GetOrRegisterMeter("p2p/readloop/total", nil)
+	readloopPing    = metrics.GetOrRegisterMeter("p2p/readloop/ping", nil)
+	readloopDiscmsg = metrics.GetOrRegisterMeter("p2p/readloop/discmsg", nil)
+	readloopDiscard = metrics.GetOrRegisterMeter("p2p/readloop/discard", nil)
+	readloopCode    = metrics.GetOrRegisterMeter("p2p/readloop/code", nil)
+)
+
 func (p *Peer) readLoop(errc chan<- error) {
 	defer p.wg.Done()
+	readloopStart.Mark(1)
 	for {
 		msg, err := p.rw.ReadMsg()
+		readloopTotal.Mark(1)
 		if err != nil {
+			p.log.Error("p2p peer readmsg failed", "err", err.Error(), "msgCode", msg.Code, "msgSize", msg.Size)
 			errc <- err
+			readloopError.Mark(1)
 			return
 		}
 		msg.ReceivedAt = time.Now()
 		if err = p.handle(msg); err != nil {
+			p.log.Error("p2p peer readloop finished", "err", err.Error(), "msgCode", msg.Code, "msgSize", msg.Size)
 			errc <- err
+			readloopError.Mark(1)
 			return
 		}
 	}
@@ -331,18 +353,22 @@ func (p *Peer) handle(msg Msg) error {
 	switch {
 	case msg.Code == pingMsg:
 		msg.Discard()
+		readloopPing.Mark(1)
 		go SendItems(p.rw, pongMsg)
 	case msg.Code == discMsg:
 		// This is the last message. We don't need to discard or
 		// check errors because, the connection will be closed after it.
 		var m struct{ R DiscReason }
 		rlp.Decode(msg.Payload, &m)
+		readloopDiscmsg.Mark(1)
 		return m.R
 	case msg.Code < baseProtocolLength:
 		// ignore other base protocol messages
+		readloopDiscard.Mark(1)
 		return msg.Discard()
 	default:
 		// it's a subprotocol message
+		readloopCode.Mark(1)
 		proto, err := p.getProto(msg.Code)
 		if err != nil {
 			return fmt.Errorf("msg code out of range: %v", msg.Code)
