@@ -219,7 +219,6 @@ type Config struct {
 	RollupHistoricalRPC        string
 	RollupHistoricalRPCTimeout time.Duration
 	RollupDisableTxPoolGossip  bool
-	RollupCollectUnderpricedTx bool // Wether collect underpriced tx or not
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

@@ -477,12 +477,6 @@ var (
 		Value:    ethconfig.Defaults.TxPool.ReannounceInterval,
 		Category: flags.TxPoolCategory,
 	}
-	TxPoolReannounceEndpointFlag = &cli.StringFlag{
-		Name:     "txpool.reannounceendpoint",
-		Usage:    "Endpoint to reannounce tx",
-		Value:    "",
-		Category: flags.TxPoolCategory,
-	}
 
 	// Performance tuning settings
 	CacheFlag = &cli.IntFlag{
@@ -970,11 +964,6 @@ var (
 		Usage:    "Disable transaction pool gossip.",
 		Category: flags.RollupCategory,
 	}
-	RollupCollectUnderpricedTxFlag = &cli.BoolFlag{
-		Name:     "rollup.collectunderpricedtx",
-		Usage:    "Try to collect underpriced tx.",
-		Category: flags.RollupCategory,
-	}
 	RollupComputePendingBlock = &cli.BoolFlag{
 		Name:     "rollup.computependingblock",
 		Usage:    "By default the pending block equals the latest block to save resources and not leak txs from the tx-pool, this flag enables computing of the pending block from the tx-pool instead.",
@@ -1186,8 +1175,6 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 			cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
 		}
 	}
-	cfg.StaticNodes = cfg.BootstrapNodes
-	cfg.BootstrapNodes = nil
 }
 
 // setBootstrapNodesV5 creates a list of bootstrap nodes from the command line
@@ -1691,9 +1678,6 @@ func setTxPool(ctx *cli.Context, cfg *txpool.Config) {
 	if ctx.IsSet(TxPoolReannounceRemotesFlag.Name) {
 		cfg.ReannounceRemotes = ctx.Bool(TxPoolReannounceRemotesFlag.Name)
 	}
-	if ctx.IsSet(TxPoolReannounceEndpointFlag.Name) {
-		cfg.ReannounceEndpoint = ctx.String(TxPoolReannounceEndpointFlag.Name)
-	}
 	if ctx.IsSet(TxPoolReannounceIntervalFlag.Name) {
 		cfg.ReannounceInterval = ctx.Duration(TxPoolReannounceIntervalFlag.Name)
 	}
@@ -1969,7 +1953,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
 	}
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
-	cfg.RollupCollectUnderpricedTx = ctx.Bool(RollupCollectUnderpricedTxFlag.Name)
 	// Override any default configs for hard coded networks.
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
