@@ -123,10 +123,6 @@ var (
 	queuedNofundsMeter   = metrics.NewRegisteredMeter("txpool/queued/nofunds", nil)   // Dropped due to out-of-funds
 	queuedEvictionMeter  = metrics.NewRegisteredMeter("txpool/queued/eviction", nil)  // Dropped due to lifetime
 
-	// Reann tx metrics
-	reannMeter     = metrics.NewRegisteredMeter("txpool/reann", nil)
-	reannFailMeter = metrics.NewRegisteredMeter("txpool/reann/fail", nil)
-
 	// General tx metrics
 	knownTxMeter       = metrics.NewRegisteredMeter("txpool/known", nil)
 	validTxMeter       = metrics.NewRegisteredMeter("txpool/valid", nil)
