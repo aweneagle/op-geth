@@ -382,7 +382,7 @@ func (pool *TxPool) loop() {
 		// Track the previous head headers for transaction reorgs
 		head = pool.chain.CurrentBlock()
 		// waiting queue for reannouncing transactions
-		reannoQueue = NewRingChain()
+		reannoQueue = NewReannQueue[common.Address]()
 	)
 	defer report.Stop()
 	defer evict.Stop()
@@ -445,7 +445,7 @@ func (pool *TxPool) loop() {
 
 				txs := make([]*types.Transaction, 0)
 				for i := 0; i < reannoQueue.Len(); i++ {
-					addr := reannoQueue.Next()
+					addr := reannoQueue.Next(common.Address{})
 					list := pool.pending[addr]
 					if list == nil || list.Len() == 0 {
 						reannoQueue.MarkRemoved(addr)
@@ -486,39 +486,42 @@ func (pool *TxPool) loop() {
 	}
 }
 
-// ringchain for for pending tx to be reannounced, which ensures that every address in pending pool has equal chances
+// ReannQueue for for pending tx to be reannounced, which ensures that every address in pending pool has equal chances
 // to be reannounced
-type RingChain struct {
-	entry    *RingNode
-	preEntry *RingNode            //the pointer of pre-node of entry
-	toRemove map[interface{}]bool // values to be removed by Clean()
-	len      int
+type ReannQueue[T comparable] struct {
+	entry    *ReannSlot[T]
+	preEntry *ReannSlot[T] //the pointer of pre-node of entry
+	toRemove map[T]bool    // values to be removed by Clean()
+	exists   map[T]bool    // to avoid duplicate element enqueue the list
 }
 
-type RingNode struct {
-	val  interface{}
-	next *RingNode
+type ReannSlot[T comparable] struct {
+	val  T
+	next *ReannSlot[T]
 }
 
-func NewRingChain() *RingChain {
-	return &RingChain{
-		toRemove: make(map[interface{}]bool),
-		len:      0,
+func NewReannQueue[T comparable]() *ReannQueue[T] {
+	return &ReannQueue[T]{
+		toRemove: make(map[T]bool),
+		exists:   make(map[T]bool),
 	}
 }
 
 // Add a new addr into ring. If already included, it will be ignored
-func (rc *RingChain) Add(value interface{}) {
-	newone := &RingNode{
+func (rc *ReannQueue[T]) Add(value T) {
+	if _, ok := rc.exists[value]; ok {
+		return
+	}
+	newone := &ReannSlot[T]{
 		val: value,
 	}
-	defer func() { rc.len++ }()
-	if rc.len == 0 {
+	defer func() { rc.exists[value] = true }()
+	if rc.Len() == 0 {
 		rc.entry, rc.preEntry = newone, newone
 		rc.entry.next = newone
 		return
 	}
-	if rc.len == 1 {
+	if rc.Len() == 1 {
 		rc.preEntry.next, rc.entry, newone.next = newone, newone, rc.entry.next
 		return
 
@@ -531,49 +534,70 @@ func (rc *RingChain) Add(value interface{}) {
 }
 
 // Mark an addr to be removed later
-func (rc *RingChain) MarkRemoved(values ...interface{}) {
+func (rc *ReannQueue[T]) MarkRemoved(values ...T) {
 	for _, val := range values {
 		rc.toRemove[val] = true
 	}
 }
 
 // Clean all addrs marked to be removed
-func (rc *RingChain) Clean() {
-	total := rc.len
+func (rc *ReannQueue[T]) Clean() {
+	defer func() { rc.toRemove = make(map[T]bool) }()
+	total := rc.Len()
+	preEntry, entry := rc.preEntry, rc.entry
 	for i := 0; i < total; i++ {
-		entry := rc.entry
 		if _, ok := rc.toRemove[entry.val]; ok {
-			rc.trim()
+			rc.trim(entry, preEntry)
 			delete(rc.toRemove, entry.val)
+			entry = entry.next
+		} else {
+			preEntry, entry = entry, entry.next
 		}
-		rc.Next()
 	}
+
 }
 
 // return the value holded by entry and then move the entry to next position.
-func (rc *RingChain) Next() common.Address {
+func (rc *ReannQueue[T]) Next(defaultVal T) T {
 	if rc.entry == nil {
-		return common.Address{}
+		return defaultVal
 	}
 	curr := rc.entry.val
 	rc.preEntry, rc.entry = rc.entry, rc.entry.next
-	return curr.(common.Address)
+	return curr
 }
 
-func (rc *RingChain) Len() int {
-	return rc.len
+func (rc *ReannQueue[T]) Len() int {
+	return len(rc.exists)
 }
 
-func (rc *RingChain) trim() {
-	if rc.len == 0 {
+func (rc *ReannQueue[T]) trim(entry, preEntry *ReannSlot[T]) {
+	if rc.Len() == 0 {
 		return
 	}
-	defer func() { rc.len-- }()
-	if rc.len == 1 {
+	curr := entry.val
+	defer func() { delete(rc.exists, curr) }()
+
+	//only one element left, clear all status
+	if rc.Len() == 1 {
 		rc.entry, rc.preEntry = nil, nil
 		return
 	}
-	rc.entry, rc.preEntry.next = rc.entry.next, rc.entry.next
+
+	// remove current element from the ring
+	preEntry.next = entry.next
+
+	//update the rc.entry if it's hit
+	if entry == rc.entry {
+		rc.entry = preEntry.next
+		return
+	}
+
+	//update the rc.preEntry if it's hit
+	if entry == rc.preEntry {
+		rc.preEntry = preEntry
+		return
+	}
 }
 
 // Stop terminates the transaction pool.
