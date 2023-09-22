@@ -44,10 +44,14 @@ const (
 	//   - In eth protocol, the softResponseLimit is 2MB. Nowadays according to
 	//     Etherscan the average transaction size is around 200B, so in theory
 	//     we can include lots of transaction in a single protocol packet.
-	//   - However the maximum size of a single transaction is raised to 128KB,
-	//     so pick a middle value here to ensure we can maximize the efficiency
-	//     of the retrieval and response size overflow won't happen in most cases.
-	maxTxRetrievals = 256
+	//   - The maximum size of a single transaction is raised to 128KB,
+	//     so if a middle value to pick up to ensure we can maximize the efficiency
+	//     of the retrieval and response size overflow won't happen in most cases,
+	//     it will be 256.
+	//   - However the eth protocol requires that GetPooledTransactions request should
+	//	   be implemented with the max payload size of 2MB, so we double the size to
+	//	   improve the throughput of reannounce.
+	maxTxRetrievals = 512
 
 	// maxTxUnderpricedSetSize is the size of the underpriced transaction set that
 	// is used to track recent transactions that have been dropped so we don't
@@ -333,10 +337,10 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 		otherRejectMeter.Mark(otherreject)
 
 		// If 'other reject' is >25% of the deliveries in any batch, sleep a bit.
-		if otherreject > 128/4 {
-			time.Sleep(200 * time.Millisecond)
-			log.Warn("Peer delivering stale transactions", "peer", peer, "rejected", otherreject)
-		}
+		//if otherreject > 128/4 {
+		//	time.Sleep(200 * time.Millisecond)
+		//	log.Warn("Peer delivering stale transactions", "peer", peer, "rejected", otherreject)
+		//}
 	}
 	select {
 	case f.cleanup <- &txDelivery{origin: peer, hashes: added, direct: direct}:
